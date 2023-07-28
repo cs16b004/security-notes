@@ -1,0 +1,23 @@
+CSE509: Computer System Security, Spring 2023
+
+Homework 3: Reverse Engineering
+------------------------------------------------------------------------------
+
+Submission deadline: 4/14/2023 11:59pm EDT
+Submission site: https://mycourses.stonybrook.edu/d2l/home/358519
+
+
+In this assignment you will practice your reverse engineering skills by
+cracking the secret input of the following two 32-bit Linux programs:
+
+crackme1
+https://piazza.com/class_profile/get_resource/lcpcz5gxb206zk/lflgh42crjg4er
+
+crackme2
+https://piazza.com/class_profile/get_resource/lcpcz5gxb206zk/lflggvg1f3r3vt
+
+
+What to submit:
+
+A document (.txt or .pdf) with the solution and a very detailed description
+of the strategy and all the *steps* you took to crack each program.

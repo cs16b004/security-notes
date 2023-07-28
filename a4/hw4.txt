@@ -1,0 +1,169 @@
+CSE509: Computer System Security, Spring 2023
+
+Homework 4: OS-level Sandboxing through Namespaces
+-------------------------------------------------------------------------------
+
+Submission deadline: 5/5/2023 11:59pm EDT
+Submission site: https://mycourses.stonybrook.edu/d2l/home/358519
+
+
+0. Description
+
+Containers use OS-level virtualization to isolate a process from other
+processes running on the host. In Linux, OS-level virtualization is mainly
+implemented through namespaces. `containerd` is an example of a container
+infrastructure which Docker builds upon. In this assignment you will develop
+your own container environment through implementing a program which provides
+OS-level sandboxing using namespaces. Your program should leverage this Linux
+kernel feature to isolate a new process from the rest of the processes running
+on the same host. It will take a given binary as input and execute it in an
+isolated environment. You will improve its isolation guarantees in each step,
+and learn how each step is necessary to prevent a malicious actor from
+breaking out of the container.
+
+Your program should conform to the following specification:
+
+./os_isolate [-b binary]
+
+-b  path to the binary that will be executed in the sandbox
+
+As an example, the following invocation of os_isolate will run a new bash
+shell that will be isolated from other processes running in the program:
+
+./os_isolate -b /bin/bash
+
+
+1. Instructions
+
+Your program will be evaluated on the same 32-bit Kali Linux VM we have used
+for the previous assignments. Although you can use any programming language
+supported by Kali out of the box, it is recommended to use C (the rest of the
+instructions and hints below assume the use of C). If you choose not to use C,
+make sure to include detailed instructions on how to compile and run your
+program.
+
+A skeleton C code is provided for this assignment at the end of this file. You
+can use this template as a starting point and complete the missing parts to
+develop a complete isolation mechanism.
+
+
+2. PID Namespace
+
+The first namespace we will use is PID. Use the clone system call (or libc
+API) to create a new process in a new PID namespace. In the child process,
+check the PID of the child and check how many processes are running in this
+namespace (using `ps aux`). Compare these results with a container launched
+through Docker (`sudo docker run -it ubuntu /bin/bash`). Compare the results
+and determine how to resolve any discrepancies (if any). Provide a brief
+explanation of what you did in your report.
+
+
+3. Net Namespace
+
+Using the previous namespace, we isolated a process into its own PID subset so
+that it cannot send signals to any other process running on the host. Now we
+would like to add the net namespace to our tool. Using the `ip link` command
+in your isolated child process and comparing its output with Docker, why is
+the net namespace necessary to provide true isolation? Add the net namespace
+to your tool and rerun the `ip link` command.
+
+
+4. Mount Namespace
+
+The final namespace we need to add to our sandboxing environment is mount. The
+mount namespace works similarly to `chroot`, and allows a child process to have
+different mount points than its parent. This allows us to isolate the files
+available to an isolated process. 
+
+Unlike the previous namespaces, when creating a new mount namespace, the
+process does not lose access to the already available mount points. You have
+to change the previous mount points prior to giving access to the process you
+want to isolate.
+
+Your isolated process should have its own root filesystem, and should not have
+access to any of the directories/files of the host. You can use a Docker
+container to get an idea of what it should look like.
+
+
+5. Escaping the Container
+
+Even though we have used these kernel features to sandbox a process from other
+processes running on the system, we have not achieved perfect isolation. For
+example, the isolated process can still invoke all the kernel system calls,
+and has all privileges (capabilities) to invoke those system calls. For this
+last part, describe how a malicious process isolated by the techniques used
+until step 4 can gain information about the underlying host. After describing
+the attack, add a defense mechanism to your os_isolate implementation that
+prevents that category of attacks.
+
+
+6. Hints
+
+After creating a new PID namespace, you need to mount a special directory for
+`ps aux` to work as expected
+
+For the mount namespace, look into `chroot`. In Linux, you can create a folder,
+put any binaries, files, directories in that new folder, and then change your
+root to point to that folder. Once you `chroot` into that folder, you lose
+access to the previous root and all its files. For the purpose of this
+assignment, you will need to setup the root folder for your sandbox before
+changing root into it. To setup the folder you can use a ready-to-use 32-bit
+filesystem. One example is:
+https://cdimage.ubuntu.com/ubuntu-base/releases/16.04/release/ubuntu-base-16.04.6-base-i386.tar.gz
+
+Seccomp BPF can be used to prevent a process from invoking certain system
+calls
+
+Some useful resources:
+https://man7.org/linux/man-pages/man7/namespaces.7.html
+https://man7.org/linux/man-pages/man2/chroot.2.html
+https://man7.org/linux/man-pages/man2/mount.2.html
+https://man7.org/linux/man-pages/man2/chdir.2.html
+https://www.cybereason.com/blog/container-escape-all-you-need-is-cap-capabilities
+
+
+7. What to submit
+
+A tarball (.tar.gz) with all required source code files and a report (ASCII
+text file is fine) with a brief description of your implementation, and
+responses to the above questions in each part, along with an example of a real
+output from your program.
+
+
+8. Solution skeleton
+
+#define _GNU_SOURCE
+#include <sched.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <sys/mount.h>
+#include <unistd.h>
+
+// add flags here
+#define CLONE_FLAGS (SIGCHLD)
+
+static char child_stack[1048576];
+
+static int create_container(char *arg) {
+	char *cmd[] = {arg, NULL};
+	execv(arg, cmd);
+	perror("exec");
+	exit(EXIT_FAILURE);
+}
+
+static int child(void *args) {
+	create_container((char*)args);
+	return (0);
+}
+
+int main(int argc, char **argv) {
+  char *cmd = "/bin/bash";
+  if ( argc == 2 )
+	cmd = argv[1];
+  pid_t child_pid = clone(child, child_stack+1048576, CLONE_FLAGS, cmd);
+
+  printf("clone() = %ld\n", (long)child_pid);
+  waitpid(child_pid, NULL, 0);
+  return 0;
+}

@@ -1,0 +1,30 @@
+
+0x402040:       "Your number corresponds to %s, well done!\n"
+
+0x402015:       "Enter the right number: "
+0x403015:
+0x40202e:       "%32s"
+0x402008:       "Wrong number"
+
+
+0xb7c53b00 __isoc99_scanf_scanf
+
+seach dor scanf in code section
+
+`find 0x00401000, 0x00405096, 0xb7c53b00`
+0x404020 <__isoc99_scanf@got.plt>
+
+0xb7fd4ea5
+1 pattern found.
+
+0x401060
+
+0x4010a0
+
+0x401346
+
+
+break at 0x004010b0
+0xb7fdd8cb
+0xb7fdd8c0
+number : 053044049065079063071063061068
